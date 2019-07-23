@@ -4,6 +4,7 @@
 # This is a neural network model which can classify whether a given image is
 # a cat or a dog.
 import os
+import time
 import random
 import numpy as np
 import cv2
@@ -11,9 +12,10 @@ import cv2
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten,\
     Conv2D, MaxPooling2D
+from tensorflow.keras.callbacks import TensorBoard
 
 
-def create_cat_dog_classification_model(datadir='Datasets/PetImages'):
+def create_cat_dog_classification_model(datadir='../Datasets/PetImages'):
     """
     Create a classifier that classifies the images at the given directory as
     either a cat or a dog.
@@ -23,6 +25,7 @@ def create_cat_dog_classification_model(datadir='Datasets/PetImages'):
     # Set the directory, categories, and image size.
     categories = ['Dog', 'Cat']
     img_size = 50
+    name = 'cat_dog_classifier{}.model'.format(int(time.time()))
 
     # Get the images of the cats and dogs in greyscale.
     training_data = create_training_data(datadir, categories, img_size)
@@ -35,11 +38,14 @@ def create_cat_dog_classification_model(datadir='Datasets/PetImages'):
     # Create the training model.
     model = create_model(X)
 
+    # Create the callback with tensorboard.
+    tensorboard = TensorBoard(log_dir='logs/{}'.format(name))
+
     # Train the model.
-    model.fit(X, y, batch_size=32, validation_split=0.1, epochs=5)
+    model.fit(X, y, batch_size=32, validation_split=0.1, epochs=10, callbacks=[tensorboard])
 
     # Save the model.
-    model.save('cat_dog_classifier.model')
+    model.save(name)
 
 
 def create_model(X):
@@ -59,10 +65,11 @@ def create_model(X):
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    # The third layer.
     model.add(Flatten())
-    model.add(Dense(64))
-    model.add(Activation('relu'))
+
+    # The third layer.
+    # model.add(Dense(64))
+    # model.add(Activation('relu'))
 
     # The output layer.
     model.add(Dense(1))
@@ -115,19 +122,23 @@ def create_training_data(dir: str, categories: list, img_size: int) -> list:
     :return: training_data
     """
     training_data = []
-    # Open all the images and append them to the training data list with their
-    # classification number.
-    for category in categories:
-        path = os.path.join(dir, category)
-        classification = categories.index(category)
-        for img in os.listdir(path):
-            try:
-                img_array = cv2.imread(os.path.join(path, img), cv2.IMREAD_GRAYSCALE)
-                # Resize the image to be the given dimensions.
-                img_array = cv2.resize(img_array, (img_size, img_size))
-                training_data.append([img_array, classification])
-            except Exception as e:
-                print('Could not read the image: ' + img)
+    try:
+        np.load('features.npy')
+        np.load('labels.npy')
+    except:
+        # Open all the images and append them to the training data list with their
+        # classification number.
+        for category in categories:
+            path = os.path.join(dir, category)
+            classification = categories.index(category)
+            for img in os.listdir(path):
+                try:
+                    img_array = cv2.imread(os.path.join(path, img), cv2.IMREAD_GRAYSCALE)
+                    # Resize the image to be the given dimensions.
+                    img_array = cv2.resize(img_array, (img_size, img_size))
+                    training_data.append([img_array, classification])
+                except Exception as e:
+                    print('Could not read the image: ' + img)
 
     return training_data
 
